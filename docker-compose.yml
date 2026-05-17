@@ -1,0 +1,50 @@
+services:
+  postgres-execucao:
+    image: postgres:16-alpine
+    container_name: execucao-service-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: execucao_service
+      POSTGRES_USER: execucao_user
+      POSTGRES_PASSWORD: execucao_pass123
+    volumes:
+      - postgres_execucao_data:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U execucao_user -d execucao_service"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - oficina-network
+
+  execucao-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: execucao-service-app
+    restart: unless-stopped
+    ports:
+      - "3003:3003"
+    environment:
+      NODE_ENV: development
+      PORT: 3003
+      DB_HOST: postgres-execucao
+      DB_PORT: 5432
+      DB_USERNAME: execucao_user
+      DB_PASSWORD: execucao_pass123
+      DB_DATABASE: execucao_service
+      RABBITMQ_URL: amqp://oficina:oficina123@rabbitmq:5672
+    depends_on:
+      postgres-execucao:
+        condition: service_healthy
+    networks:
+      - oficina-network
+
+volumes:
+  postgres_execucao_data:
+
+networks:
+  oficina-network:
+    driver: bridge
